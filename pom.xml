@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
 
-    Copyright 2010-2020 the original author or authors.
+    Copyright 2010-2021 the original author or authors.
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -310,6 +310,7 @@
   <build>
     <plugins>
       <plugin>
+        <!-- 这是一个用于mvn生命周期的测试阶段的插件，可以通过一些参数设置方便的在testNG或junit下对测试阶段进行自定义。-->
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-surefire-plugin</artifactId>
         <configuration>
@@ -325,15 +326,16 @@
           </systemProperties>
         </configuration>
       </plugin>
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-site-plugin</artifactId>
-        <configuration>
-          <locales>en,es,zh_CN,ja,ko</locales>
-          <!-- Build using files that replace a placeholder using project properties -->
-          <siteDirectory>${project.build.directory}/site-src</siteDirectory>
-        </configuration>
-      </plugin>
+<!--      <plugin>-->
+<!--        &lt;!&ndash; 这一个负责为Java项目生成静态HTML网站的插件。本地学习源码用不到.就注释掉了&ndash;&gt;-->
+<!--        <groupId>org.apache.maven.plugins</groupId>-->
+<!--        <artifactId>maven-site-plugin</artifactId>-->
+<!--        <configuration>-->
+<!--          <locales>en,es,zh_CN,ja,ko</locales>-->
+<!--          &lt;!&ndash; Build using files that replace a placeholder using project properties &ndash;&gt;-->
+<!--          <siteDirectory>${project.build.directory}/site-src</siteDirectory>-->
+<!--        </configuration>-->
+<!--      </plugin>-->
     </plugins>
 
     <resources>

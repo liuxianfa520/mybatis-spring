@@ -201,18 +201,26 @@ public class ClassPathMapperScanner extends ClassPathBeanDefinitionScanner {
    */
   @Override
   public Set<BeanDefinitionHolder> doScan(String... basePackages) {
+      // 先使用父类的doScan方法扫描出 basePackages 的所有bean定义
     Set<BeanDefinitionHolder> beanDefinitions = super.doScan(basePackages);
 
     if (beanDefinitions.isEmpty()) {
       LOGGER.warn(() -> "No MyBatis mapper was found in '" + Arrays.toString(basePackages)
           + "' package. Please check your configuration.");
     } else {
+        // 对Mapper的bean定义进行特殊处理.主要就是把beanClass改成 MapperFactoryBean
       processBeanDefinitions(beanDefinitions);
     }
 
     return beanDefinitions;
   }
 
+    /**
+     * 对basePackages包中扫描出的所有bean定义进行特殊处理.
+     * 这些bean定义都表示的是Mapper.java
+     *
+     * @param beanDefinitions bean定义
+     */
   private void processBeanDefinitions(Set<BeanDefinitionHolder> beanDefinitions) {
     AbstractBeanDefinition definition;
     BeanDefinitionRegistry registry = getRegistry();
@@ -226,13 +234,16 @@ public class ClassPathMapperScanner extends ClassPathBeanDefinitionScanner {
                 "The target bean definition of scoped proxy bean not found. Root bean definition[" + holder + "]"));
         scopedProxy = true;
       }
+
+        // bean定义中:Mapper接口的全限定名
       String beanClassName = definition.getBeanClassName();
-      LOGGER.debug(() -> "Creating MapperFactoryBean with name '" + holder.getBeanName() + "' and '" + beanClassName
-          + "' mapperInterface");
+      LOGGER.debug(() -> "Creating MapperFactoryBean with name '" + holder.getBeanName() + "' and '" + beanClassName + "' mapperInterface");
 
       // the mapper interface is the original class of the bean
       // but, the actual class of the bean is MapperFactoryBean
+      // 目标Mapper接口被设置为 MapperFactoryBean 的构造参数
       definition.getConstructorArgumentValues().addGenericArgumentValue(beanClassName); // issue #59
+      // bean定义的beanClass修改成 MapperFactoryBean
       definition.setBeanClass(this.mapperFactoryBeanClass);
 
       definition.getPropertyValues().add("addToConfig", this.addToConfig);
@@ -283,11 +294,15 @@ public class ClassPathMapperScanner extends ClassPathBeanDefinitionScanner {
         definition.setScope(defaultScope);
       }
 
+        // 如果bean不是单例的
       if (!definition.isSingleton()) {
+          // 创建代理bean定义
         BeanDefinitionHolder proxyHolder = ScopedProxyUtils.createScopedProxy(holder, registry, true);
+          // 如果注册中心已经包含了此bean定义,就先移除掉
         if (registry.containsBeanDefinition(proxyHolder.getBeanName())) {
           registry.removeBeanDefinition(proxyHolder.getBeanName());
         }
+        // 注册bean定义
         registry.registerBeanDefinition(proxyHolder.getBeanName(), proxyHolder.getBeanDefinition());
       }
 

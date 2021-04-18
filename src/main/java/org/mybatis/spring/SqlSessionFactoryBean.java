@@ -1,5 +1,5 @@
 /**
- * Copyright 2010-2020 the original author or authors.
+ * Copyright 2010-2021 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -98,6 +98,11 @@ public class SqlSessionFactoryBean
 
   private Configuration configuration;
 
+  /**
+   * 指定 XxxMapper.xml文件位置 例如:"classpath*:mapper/*Mapper.xml"
+   *
+   * @see #setMapperLocations(Resource...)
+   */
   private Resource[] mapperLocations;
 
   private DataSource dataSource;
@@ -108,6 +113,11 @@ public class SqlSessionFactoryBean
 
   private SqlSessionFactoryBuilder sqlSessionFactoryBuilder = new SqlSessionFactoryBuilder();
 
+  /**
+   * 默认是 DefaultSqlSessionFactory 类
+   *
+   * @see SqlSessionFactoryBuilder#build(org.apache.ibatis.session.Configuration)
+   */
   private SqlSessionFactory sqlSessionFactory;
 
   // EnvironmentAware requires spring 3.1
@@ -240,15 +250,14 @@ public class SqlSessionFactoryBean
   }
 
   /**
-   * Packages to search for type aliases.
+   * Packages to search for type aliases. Since 2.0.1, allow to specify a wildcard such as {@code com.example.*.model}.
    *
-   * <p>
-   * Since 2.0.1, allow to specify a wildcard such as {@code com.example.*.model}.
+   * 用于搜索实体类别名的包名 (UserEntity OrderEntity 所在的包) 从2.0.1开始，允许指定通配符，例如com.example.*.model 。
    *
    * @since 1.0.1
    *
    * @param typeAliasesPackage
-   *          package to scan for domain objects
+   *          package to scan for domain objects 用于扫描领域对象的包名.也就是 UserEntity 等实体对应的包名
    *
    */
   public void setTypeAliasesPackage(String typeAliasesPackage) {
@@ -480,14 +489,18 @@ public class SqlSessionFactoryBean
 
   /**
    * {@inheritDoc}
+   *
+   * 实现了 {@link InitializingBean} 在bean的属性设置完毕后,被调用:
    */
   @Override
   public void afterPropertiesSet() throws Exception {
     notNull(dataSource, "Property 'dataSource' is required");
     notNull(sqlSessionFactoryBuilder, "Property 'sqlSessionFactoryBuilder' is required");
+    // 这两个属性不能同时被指定
     state((configuration == null && configLocation == null) || !(configuration != null && configLocation != null),
         "Property 'configuration' and 'configLocation' can not specified with together");
 
+    // 创建 sqlSessionFactory
     this.sqlSessionFactory = buildSqlSessionFactory();
   }
 
@@ -516,8 +529,10 @@ public class SqlSessionFactoryBean
       }
     } else if (this.configLocation != null) {
       xmlConfigBuilder = new XMLConfigBuilder(this.configLocation.getInputStream(), null, this.configurationProperties);
+      // todo:是如何解析的?配置文件中的常用配置,是对应到哪个属性?
       targetConfiguration = xmlConfigBuilder.getConfiguration();
     } else {
+      // 两个属性都没有被指定,则使用MyBatis默认的配置
       LOGGER.debug(
           () -> "Property 'configuration' or 'configLocation' not specified, using default MyBatis Configuration");
       targetConfiguration = new Configuration();
@@ -531,7 +546,7 @@ public class SqlSessionFactoryBean
     if (hasLength(this.typeAliasesPackage)) {
       scanClasses(this.typeAliasesPackage, this.typeAliasesSuperType).stream()
           .filter(clazz -> !clazz.isAnonymousClass()).filter(clazz -> !clazz.isInterface())
-          .filter(clazz -> !clazz.isMemberClass()).forEach(targetConfiguration.getTypeAliasRegistry()::registerAlias);
+          .filter(clazz -> !clazz.isMemberClass()).forEach(targetConfiguration.getTypeAliasRegistry()::registerAlias); // 把扫描到的实体类,注册别名
     }
 
     if (!isEmpty(this.typeAliases)) {
@@ -597,6 +612,7 @@ public class SqlSessionFactoryBean
         this.transactionFactory == null ? new SpringManagedTransactionFactory() : this.transactionFactory,
         this.dataSource));
 
+    // 解析Mapper.xml配置文件
     if (this.mapperLocations != null) {
       if (this.mapperLocations.length == 0) {
         LOGGER.warn(() -> "Property 'mapperLocations' was specified but matching resources are not found.");
@@ -621,6 +637,7 @@ public class SqlSessionFactoryBean
       LOGGER.debug(() -> "Property 'mapperLocations' was not specified.");
     }
 
+    // 上面各种配置完毕后,创建 SqlSessionFactory
     return this.sqlSessionFactoryBuilder.build(targetConfiguration);
   }
 
@@ -657,8 +674,9 @@ public class SqlSessionFactoryBean
    */
   @Override
   public void onApplicationEvent(ApplicationEvent event) {
-    if (failFast && event instanceof ContextRefreshedEvent) {
+    if (failFast && event instanceof ContextRefreshedEvent) {// ContextRefreshedEvent 是springIOC容器刷新完毕事件
       // fail-fast -> check all statements are completed
+      // 快速失败 ——> 检查所有的 statements
       this.sqlSessionFactory.getConfiguration().getMappedStatementNames();
     }
   }
